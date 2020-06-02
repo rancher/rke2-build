@@ -1,0 +1,138 @@
+#cloud-config
+%{ if length(extra_ssh_keys) > 0 }
+ssh_authorized_keys:
+%{ for ssh_key in extra_ssh_keys }
+- ${ssh_key}
+%{ endfor }
+%{ endif }
+runcmd:
+- apt-get update
+- apt-get install -y iptables git telnet vim software-properties-common resolvconf linux-headers-$(uname -r)
+- echo "nameserver 1.1.1.1" > /etc/resolvconf/resolv.conf.d/tail
+- echo "RateLimitIntervalSec=0" >> /etc/systemd/journald.conf
+- echo "RateLimitBurst=0" >> /etc/systemd/journald.conf
+- systemctl restart systemd-journald.service
+- systemctl start resolvconf
+- /opt/rke2/run_rke2.sh
+
+write_files:
+- path: /opt/rke2/manifests/coredns2.yml
+  permissions: "0644"
+  owner: root:root
+  content: |
+    apiVersion: helm.cattle.io/v1
+    kind: HelmChart
+    metadata:
+      name: coredns
+      namespace: kube-system
+    spec:
+      chart: https://dev-charts.rancher.io/coredns/coredns-1.10.101.tgz
+      bootstrap: true
+- path: /opt/rke2/manifests/nginx-ingress.yml
+  permissions: "0644"
+  owner: root:root
+  content: |
+    apiVersion: helm.cattle.io/v1
+    kind: HelmChart
+    metadata:
+      name: nginx-ingress
+      namespace: kube-system
+    spec:
+      chart: https://dev-charts.rancher.io/nginx-ingress/nginx-ingress-1.36.300.tgz
+- path: /opt/rke2/manifests/metrics.yml
+  permissions: "0644"
+  owner: root:root
+  content: |
+    apiVersion: helm.cattle.io/v1
+    kind: HelmChart
+    metadata:
+      name: metrics-server
+      namespace: kube-system
+    spec:
+      chart: https://dev-charts.rancher.io/metrics-server/metrics-server-2.11.100.tgz
+      bootstrap: true
+- path: /opt/rke2/manifests/canal.yml
+  permissions: "0644"
+  owner: root:root
+  content: |
+    apiVersion: helm.cattle.io/v1
+    kind: HelmChart
+    metadata:
+      name: canal
+      namespace: kube-system
+    spec:
+      chart: https://dev-charts.rancher.io/canal/canal-v3.13.3.tgz
+      bootstrap: true
+- path: /opt/rke2/manifests/kube-proxy.yml
+  permissions: "0644"
+  owner: root:root
+  content: |
+    apiVersion: helm.cattle.io/v1
+    kind: HelmChart
+    metadata:
+      name: kube-proxy
+      namespace: kube-system
+    spec:
+      chart: https://dev-charts.rancher.io/kube-proxy/kube-proxy-v1.18.2.tgz
+      bootstrap: true
+- path: /etc/systemd/system/rke2.service
+  permissions: "0755"
+  owner: root:root
+  content: |
+    [Unit]
+    Description=RKE2
+    Wants=network-online.target
+    [Install]
+    WantedBy=multi-user.target
+    [Service]
+    Type=notify
+    KillMode=process
+    Delegate=yes
+    # Having non-zero Limit*s causes performance problems due to accounting overhead
+    # in the kernel. We recommend using cgroups to do container-local accounting.
+    EnvironmentFile=/etc/systemd/system/rke2.service.env
+    LimitNOFILE=1048576
+    LimitNPROC=infinity
+    LimitCORE=infinity
+    TasksMax=infinity
+    TimeoutStartSec=0
+    Restart=always
+    RestartSec=5s
+    ExecStartPre=-/sbin/modprobe br_netfilter
+    ExecStartPre=-/sbin/modprobe overlay
+    ExecStart=/usr/local/bin/rke2 server ${rke2_server_args} --tls-san ${domain_name} --token ${rke2_cluster_secret} %{ if master_index != 0 } --server https://${lb_address}:9345 %{ endif }
+- path: /opt/rke2/run_rke2.sh
+  permissions: "0755"
+  owner: root:root
+  content: |
+    #!/bin/bash
+    set -x
+    K8S_VERSION=v1.18.2
+    ETCD_VERSION=v3.4.3
+    REPO_PATH="ranchertest"
+    RKE2_URL=https://github.com/galal-hussein/rke2/releases/download/${rke2_version}/rke2
+    wget -O /usr/local/bin/rke2 $RKE2_URL
+    chmod +x /usr/local/bin/rke2
+    # setting up environment
+    echo "HOME=/root" > /etc/systemd/system/rke2.service.env
+    echo RKE2_ETCD_IMAGE=$${REPO_PATH}/etcd:$${ETCD_VERSION} >> /etc/systemd/system/rke2.service.env
+    echo RKE2_KUBE_APISERVER_IMAGE=$${REPO_PATH}/kubernetes:$${K8S_VERSION} >> /etc/systemd/system/rke2.service.env
+    echo RKE2_KUBE_CONTROLLER_MANAGER_IMAGE=$${REPO_PATH}/kubernetes:$${K8S_VERSION} >> /etc/systemd/system/rke2.service.env
+    echo RKE2_KUBE_SCHEDULER_IMAGE=$${REPO_PATH}/kubernetes:$${K8S_VERSION} >> /etc/systemd/system/rke2.service.env
+ 
+    %{ if master_index != 0 }
+    while true; do
+      timeout 1 bash -c 'cat < /dev/null > /dev/tcp/${lb_address}/9345'
+      if [ "$?" == 0 ]; then
+        break
+      fi
+      echo "master is not ready yet"
+      sleep 10
+    done
+    %{ endif }
+    systemctl enable rke2
+    systemctl daemon-reload
+    systemctl start rke2
+    sleep 20
+    cp /opt/rke2/manifests/* /var/lib/rancher/rke2/server/manifests
+

@@ -1,0 +1,73 @@
+#cloud-config
+%{ if length(extra_ssh_keys) > 0 }
+ssh_authorized_keys:
+%{ for ssh_key in extra_ssh_keys }
+- ${ssh_key}
+%{ endfor }
+%{ endif }
+write_files:
+- path: /etc/systemd/system/rke2-agent.service
+  permissions: "0755"
+  owner: root:root
+  content: |
+    [Unit]
+    Description=RKE2 Agent
+    Wants=network-online.target
+    [Install]
+    WantedBy=multi-user.target
+    [Service]
+    Type=notify
+    KillMode=process
+    Delegate=yes
+    # Having non-zero Limit*s causes performance problems due to accounting overhead
+    # in the kernel. We recommend using cgroups to do container-local accounting.
+    EnvironmentFile=/etc/systemd/system/rke2-agent.service.env
+    LimitNOFILE=1048576
+    LimitNPROC=infinity
+    LimitCORE=infinity
+    TasksMax=infinity
+    TimeoutStartSec=0
+    Restart=always
+    RestartSec=5s
+    ExecStartPre=-/sbin/modprobe br_netfilter
+    ExecStartPre=-/sbin/modprobe overlay
+    ExecStart=/usr/local/bin/rke2 agent ${rke2_agent_args} --token ${rke2_cluster_secret} --server https://${rke2_url}:9345
+- path: /opt/rke2/run_rke2.sh
+  permissions: "0755"
+  owner: root:root
+  content: |
+    #!/bin/bash
+    set -x
+    RKE2_URL=https://github.com/galal-hussein/rke2/releases/download/${rke2_version}/rke2
+    wget -O /usr/local/bin/rke2 $RKE2_URL
+    chmod +x /usr/local/bin/rke2
+    sleep 10
+
+    # setting up environment
+    K8S_VERSION=v1.18.2
+    ETCD_VERSION=v3.4.3
+    REPO_PATH="ranchertest"
+
+    echo RKE2_ETCD_IMAGE=$${REPO_PATH}/etcd:$${ETCD_VERSION} >> /etc/systemd/system/rke2-agent.service.env
+    echo RKE2_KUBE_APISERVER_IMAGE=$${REPO_PATH}/kubernetes:$${K8S_VERSION} >> /etc/systemd/system/rke2-agent.service.env
+    echo RKE2_KUBE_CONTROLLER_MANAGER_IMAGE=$${REPO_PATH}/kubernetes:$${K8S_VERSION} >> /etc/systemd/system/rke2-agent.service.env
+    echo RKE2_KUBE_SCHEDULER_IMAGE=$${REPO_PATH}/kubernetes:$${K8S_VERSION} >> /etc/systemd/system/rke2-agent.service.env
+    echo "HOME=/root" > /etc/systemd/system/rke2-agent.service.env
+    systemctl enable rke2-agent
+    systemctl daemon-reload
+    systemctl start rke2-agent
+
+runcmd:
+- apt-get update
+- apt-get install -y iptables git vim software-properties-common resolvconf linux-headers-$(uname -r)
+- echo "nameserver 1.1.1.1" > /etc/resolvconf/resolv.conf.d/tail
+- echo "RateLimitIntervalSec=0" >> /etc/systemd/journald.conf
+- echo "RateLimitBurst=0" >> /etc/systemd/journald.conf
+- systemctl restart systemd-journald.service
+- systemctl start resolvconf
+- /opt/rke2/run_rke2.sh
+%{ if debug != 0 }
+- sed -i 's/bin\/rke2/bin\/rke2-agent --debug/g' /etc/systemd/system/rke2-agent.service
+- systemctl daemon-reload
+- systemctl restart rke2
+%{ endif }
