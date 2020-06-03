@@ -15,73 +15,17 @@ provider "aws" {
   profile = "rancher-eng"
 }
 
-resource "aws_security_group" "rke2-server" {
+resource "aws_security_group" "rke2-all-open" {
   name   = "${local.name}-sg"
   vpc_id = data.aws_vpc.default.id
 
   ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 6443
-    to_port     = 6443
-    protocol    = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-ingress {
-    from_port   = 9345
-    to_port     = 9345
-    protocol    = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
     from_port = 0
     to_port   = 0
     protocol  = "-1"
-    self      = true
-  }
-  
-  ingress {
-    from_port   = 30000
-    to_port     = 32767
-    protocol    = "TCP"
     cidr_blocks = ["0.0.0.0/0"]
   }
   
-  ingress {
-    from_port   = 10250
-    to_port     = 10250
-    protocol    = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  
-  ingress {
-    from_port   = 9099
-    to_port     = 9099
-    protocol    = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  
-  ingress {
-    from_port   = 8472
-    to_port     = 8472
-    protocol    = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 2379
-    to_port     = 2380
-    protocol    = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -90,59 +34,136 @@ ingress {
   }
 }
 
-resource "aws_security_group" "rke2-agent" {
-  name   = "${local.name}-pool"
-  vpc_id = data.aws_vpc.default.id
 
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  
-  ingress {
-    from_port   = 30000
-    to_port     = 32767
-    protocol    = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  
-  ingress {
-    from_port   = 10250
-    to_port     = 10250
-    protocol    = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  
-  ingress {
-    from_port   = 9099
-    to_port     = 9099
-    protocol    = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  
-  ingress {
-    from_port   = 8472
-    to_port     = 8472
-    protocol    = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 
-  ingress {
-    from_port = 0
-    to_port   = 0
-    protocol  = "-1"
-    self      = true
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
+#resource "aws_security_group" "rke2-server" {
+#  name   = "${local.name}-sg"
+#  vpc_id = data.aws_vpc.default.id
+#
+#  ingress {
+#    from_port   = 22
+#    to_port     = 22
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#
+#  ingress {
+#    from_port   = 6443
+#    to_port     = 6443
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#
+#ingress {
+#    from_port   = 9345
+#    to_port     = 9345
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#
+#  ingress {
+#    from_port = 0
+#    to_port   = 0
+#    protocol  = "-1"
+#    self      = true
+#  }
+#  
+#  ingress {
+#    from_port   = 30000
+#    to_port     = 32767
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#  
+#  ingress {
+#    from_port   = 10250
+#    to_port     = 10250
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#  
+#  ingress {
+#    from_port   = 9099
+#    to_port     = 9099
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#  
+#  ingress {
+#    from_port   = 8472
+#    to_port     = 8472
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#
+#  ingress {
+#    from_port   = 2379
+#    to_port     = 2380
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#
+#  egress {
+#    from_port   = 0
+#    to_port     = 0
+#    protocol    = "-1"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#}
+#
+#resource "aws_security_group" "rke2-agent" {
+#  name   = "${local.name}-pool"
+#  vpc_id = data.aws_vpc.default.id
+#
+#  ingress {
+#    from_port   = 22
+#    to_port     = 22
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#  
+#  ingress {
+#    from_port   = 30000
+#    to_port     = 32767
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#  
+#  ingress {
+#    from_port   = 10250
+#    to_port     = 10250
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#  
+#  ingress {
+#    from_port   = 9099
+#    to_port     = 9099
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#  
+#  ingress {
+#    from_port   = 8472
+#    to_port     = 8472
+#    protocol    = "TCP"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#
+#  ingress {
+#    from_port = 0
+#    to_port   = 0
+#    protocol  = "-1"
+#    self      = true
+#  }
+#
+#  egress {
+#    from_port   = 0
+#    to_port     = 0
+#    protocol    = "-1"
+#    cidr_blocks = ["0.0.0.0/0"]
+#  }
+#}
 
 resource "aws_lb" "rke2-master-nlb" {
   name               = "${local.name}-nlb"
@@ -247,7 +268,7 @@ resource "aws_instance" "rke2-server" {
     rke2_arch = var.rke2_arch,
     debug = var.debug,}))
   security_groups = [
-    aws_security_group.rke2-server.name,
+    aws_security_group.rke2-all-open.name,
   ]
 
    root_block_device {
@@ -302,7 +323,7 @@ module "rke2-pool-agent-asg" {
   spot_price          = "0.680"
 
   security_groups = [
-    aws_security_group.rke2-agent.id,
+    aws_security_group.rke2-all-open.id,
   ]
   lc_name = "${local.name}-pool"
 
