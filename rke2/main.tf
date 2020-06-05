@@ -12,7 +12,7 @@ locals {
 
 provider "aws" {
   region  = "us-east-2"
-  profile = "rancher-eng"
+  profile = var.aws_profile
 }
 
 resource "aws_security_group" "rke2-all-open" {
@@ -34,137 +34,6 @@ resource "aws_security_group" "rke2-all-open" {
   }
 }
 
-
-
-#resource "aws_security_group" "rke2-server" {
-#  name   = "${local.name}-sg"
-#  vpc_id = data.aws_vpc.default.id
-#
-#  ingress {
-#    from_port   = 22
-#    to_port     = 22
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#
-#  ingress {
-#    from_port   = 6443
-#    to_port     = 6443
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#
-#ingress {
-#    from_port   = 9345
-#    to_port     = 9345
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#
-#  ingress {
-#    from_port = 0
-#    to_port   = 0
-#    protocol  = "-1"
-#    self      = true
-#  }
-#  
-#  ingress {
-#    from_port   = 30000
-#    to_port     = 32767
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#  
-#  ingress {
-#    from_port   = 10250
-#    to_port     = 10250
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#  
-#  ingress {
-#    from_port   = 9099
-#    to_port     = 9099
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#  
-#  ingress {
-#    from_port   = 8472
-#    to_port     = 8472
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#
-#  ingress {
-#    from_port   = 2379
-#    to_port     = 2380
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#
-#  egress {
-#    from_port   = 0
-#    to_port     = 0
-#    protocol    = "-1"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#}
-#
-#resource "aws_security_group" "rke2-agent" {
-#  name   = "${local.name}-pool"
-#  vpc_id = data.aws_vpc.default.id
-#
-#  ingress {
-#    from_port   = 22
-#    to_port     = 22
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#  
-#  ingress {
-#    from_port   = 30000
-#    to_port     = 32767
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#  
-#  ingress {
-#    from_port   = 10250
-#    to_port     = 10250
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#  
-#  ingress {
-#    from_port   = 9099
-#    to_port     = 9099
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#  
-#  ingress {
-#    from_port   = 8472
-#    to_port     = 8472
-#    protocol    = "TCP"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#
-#  ingress {
-#    from_port = 0
-#    to_port   = 0
-#    protocol  = "-1"
-#    self      = true
-#  }
-#
-#  egress {
-#    from_port   = 0
-#    to_port     = 0
-#    protocol    = "-1"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#}
-
 resource "aws_lb" "rke2-master-nlb" {
   name               = "${local.name}-nlb"
   internal           = false
@@ -175,8 +44,8 @@ resource "aws_lb" "rke2-master-nlb" {
 resource "aws_route53_record" "www" {
    # currently there is the only way to use nlb dns name in rke2
    # because the real dns name is too long and cause an issue
-   zone_id = "${var.zone_id}"
-   name = "${var.domain_name}"
+   zone_id = var.zone_id
+   name = var.domain_name
    type = "CNAME"
    ttl = "30"
    records = ["${aws_lb.rke2-master-nlb.dns_name}"]
@@ -234,26 +103,26 @@ resource "aws_lb_listener" "rke2-master-supervisor-nlb-tg" {
 }
 
 resource "aws_lb_target_group_attachment" "rke2-nlb-attachement" {
-  count = "${var.server_count}"
+  count = var.server_count
   target_group_arn = "${aws_lb_target_group.rke2-master-nlb-tg.arn}"
   target_id        = "${aws_instance.rke2-server[count.index].id}"
   port             = 6443
 }
 
 resource "aws_lb_target_group_attachment" "rke2-nlb-supervisor-attachement" {
-  count = "${var.server_count}"
+  count = var.server_count
   target_group_arn = "${aws_lb_target_group.rke2-master-supervisor-nlb-tg.arn}"
   target_id        = "${aws_instance.rke2-server[count.index].id}"
   port             = 9345
 }
 
 resource "aws_eip" "rke2-server-eip" {
-  count            = "${var.server_count}"
+  count            = var.server_count
   vpc              = true
 }
 
 resource "aws_instance" "rke2-server" {
-  count = "${var.server_count}"
+  count = var.server_count
   instance_type = var.server_instance_type
   ami           = data.aws_ami.ubuntu.id
   user_data     = base64encode(templatefile("${path.module}/files/server_userdata.tmpl",
@@ -286,7 +155,7 @@ resource "aws_instance" "rke2-server" {
 }
 
 resource "aws_eip_association" "eip_assoc" {
-  count = "${var.server_count}"
+  count = var.server_count
   instance_id   = "${aws_instance.rke2-server[count.index].id}"
   allocation_id = "${aws_eip.rke2-server-eip[count.index].id}"
 }
@@ -338,7 +207,7 @@ module "rke2-pool-agent-asg" {
 resource "null_resource" "get-kubeconfig" {
   provisioner "local-exec" {
     interpreter = ["bash", "-c"]
-    command     = "until ssh -i ${var.ssh_key_path} ubuntu@${aws_eip.rke2-server-eip[0].public_ip} 'sudo sed \"s/localhost/$var.domain_name}/g;s/127.0.0.1/${var.domain_name}/g\" /etc/rancher/rke2/rke2.yaml' >| ./kubeconfig.yaml; do sleep 5; done"
+    command     = "until ssh -o 'UserKnownHostsFile=/dev/null' -o 'StrictHostKeyChecking=no' -i ${var.ssh_key_path} ubuntu@${aws_eip.rke2-server-eip[0].public_ip} 'sudo sed \"s/localhost/$var.domain_name}/g;s/127.0.0.1/${var.domain_name}/g\" /etc/rancher/rke2/rke2.yaml' >| ./kubeconfig.yaml; do sleep 5; done"
   }
 }
 

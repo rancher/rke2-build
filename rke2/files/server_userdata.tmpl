@@ -3,7 +3,7 @@
 ssh_authorized_keys:
 %{ for ssh_key in extra_ssh_keys }
 - ${ssh_key}
-%{ endfor }
+%{ endfor } 
 %{ endif }
 runcmd:
 - apt-get update

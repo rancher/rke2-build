@@ -1,3 +1,9 @@
+variable "aws_profile" {
+  default = "rancher-eng"
+  type = string
+  description = "AWS credential profile"
+}
+
 variable "server_instance_type" {
   # default = "c4.8xlarge"
 }
@@ -64,5 +70,4 @@ variable "rke2_arch" {
 
 variable "agent_node_count" {}
 
-variable "agent_instance_type" {
-}
+variable "agent_instance_type" {}

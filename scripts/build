@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash -ex
 
 if [ "${DEBUG}" = "1" ]; then
 	set -x
@@ -36,6 +36,7 @@ init() {
 }
 
 build() {
+  mkdir -p $BUILD_DIR
   # init terraform
   init
   # configure variables
@@ -78,6 +79,7 @@ domain_name = "${NAME}.eng.rancher.space"
 zone_id = "${ZONE_ID}"
 agent_node_count = "${AGENT_COUNT}"
 agent_instance_type = "${AGENT_INSTANCE_TYPE}"
+aws_profile = "${AWS_PROFILE}"
 MAIN
 }
 
@@ -87,7 +89,7 @@ clean() {
 }
 
 destroy() {
-    $TERRAFORM_DESTROY_CMD
+        $TERRAFORM_DESTROY_CMD
 }
 
 if [ -z "$NAME" ]; then
@@ -96,13 +98,15 @@ fi
 BUILD_DIR=rke-build-$NAME
 
 if [ $1 == "build" ] || [ $1 == "destroy" ]; then
-  mkdir -p $BUILD_DIR
+  if [ ! -d "$BUILD_DIR" ] && [ $1 == "destroy" ]; then
+    fatal "setup directory doesnt exist.."
+  fi
   cp -r rke2/* scripts $BUILD_DIR
   pushd $BUILD_DIR
   $@
   popd
   if [ $1 == "destroy" ]; then
-	  clean
+    clean
   fi
 else
   $@
