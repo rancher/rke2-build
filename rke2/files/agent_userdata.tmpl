@@ -38,20 +38,12 @@ write_files:
   content: |
     #!/bin/bash
     set -x
-    RKE2_URL=https://github.com/galal-hussein/rke2/releases/download/${rke2_version}/rke2
+    RKE2_URL=https://github.com/rancher/rke2/releases/download/${rke2_version}/rke2-v0.0.1-alpha.4.linux-amd64
     wget -O /usr/local/bin/rke2 $RKE2_URL
     chmod +x /usr/local/bin/rke2
     sleep 10
 
     # setting up environment
-    K8S_VERSION=v1.18.2
-    ETCD_VERSION=v3.4.3
-    REPO_PATH="ranchertest"
-
-    echo RKE2_ETCD_IMAGE=$${REPO_PATH}/etcd:$${ETCD_VERSION} >> /etc/systemd/system/rke2-agent.service.env
-    echo RKE2_KUBE_APISERVER_IMAGE=$${REPO_PATH}/kubernetes:$${K8S_VERSION} >> /etc/systemd/system/rke2-agent.service.env
-    echo RKE2_KUBE_CONTROLLER_MANAGER_IMAGE=$${REPO_PATH}/kubernetes:$${K8S_VERSION} >> /etc/systemd/system/rke2-agent.service.env
-    echo RKE2_KUBE_SCHEDULER_IMAGE=$${REPO_PATH}/kubernetes:$${K8S_VERSION} >> /etc/systemd/system/rke2-agent.service.env
     echo "HOME=/root" > /etc/systemd/system/rke2-agent.service.env
     systemctl enable rke2-agent
     systemctl daemon-reload

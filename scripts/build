@@ -36,7 +36,6 @@ init() {
 }
 
 build() {
-  mkdir -p $BUILD_DIR
   # init terraform
   init
   # configure variables
@@ -101,6 +100,7 @@ if [ $1 == "build" ] || [ $1 == "destroy" ]; then
   if [ ! -d "$BUILD_DIR" ] && [ $1 == "destroy" ]; then
     fatal "setup directory doesnt exist.."
   fi
+  mkdir -p $BUILD_DIR
   cp -r rke2/* scripts $BUILD_DIR
   pushd $BUILD_DIR
   $@

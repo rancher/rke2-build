@@ -116,11 +116,6 @@ resource "aws_lb_target_group_attachment" "rke2-nlb-supervisor-attachement" {
   port             = 9345
 }
 
-resource "aws_eip" "rke2-server-eip" {
-  count            = var.server_count
-  vpc              = true
-}
-
 resource "aws_instance" "rke2-server" {
   count = var.server_count
   instance_type = var.server_instance_type
@@ -131,7 +126,7 @@ resource "aws_instance" "rke2-server" {
     rke2_cluster_secret = local.rke2_cluster_secret,
     rke2_version = local.rke2_version,
     rke2_server_args = var.rke2_server_args,
-    lb_address = aws_eip.rke2-server-eip[0].public_ip,
+    lb_address = aws_lb.rke2-master-nlb.dns_name,
     domain_name = var.domain_name
     master_index = count.index,
     rke2_arch = var.rke2_arch,
@@ -154,12 +149,6 @@ resource "aws_instance" "rke2-server" {
   }
 }
 
-resource "aws_eip_association" "eip_assoc" {
-  count = var.server_count
-  instance_id   = "${aws_instance.rke2-server[count.index].id}"
-  allocation_id = "${aws_eip.rke2-server-eip[count.index].id}"
-}
-
 module "rke2-pool-agent-asg" {
   source        = "terraform-aws-modules/autoscaling/aws"
   version       = "3.0.0"
@@ -169,7 +158,7 @@ module "rke2-pool-agent-asg" {
   image_id      = data.aws_ami.ubuntu.id
   user_data     = base64encode(templatefile("${path.module}/files/agent_userdata.tmpl",
   {
-    rke2_url = aws_eip.rke2-server-eip[0].public_ip,
+    rke2_url = aws_lb.rke2-master-nlb.dns_name,
     extra_ssh_keys = var.extra_ssh_keys,
     rke2_cluster_secret = local.rke2_cluster_secret,
     rke2_version = local.rke2_version,
@@ -207,7 +196,7 @@ module "rke2-pool-agent-asg" {
 resource "null_resource" "get-kubeconfig" {
   provisioner "local-exec" {
     interpreter = ["bash", "-c"]
-    command     = "until ssh -o 'UserKnownHostsFile=/dev/null' -o 'StrictHostKeyChecking=no' -i ${var.ssh_key_path} ubuntu@${aws_eip.rke2-server-eip[0].public_ip} 'sudo sed \"s/localhost/$var.domain_name}/g;s/127.0.0.1/${var.domain_name}/g\" /etc/rancher/rke2/rke2.yaml' >| ./kubeconfig.yaml; do sleep 5; done"
+    command     = "until ssh -o 'UserKnownHostsFile=/dev/null' -o 'StrictHostKeyChecking=no' -i ${var.ssh_key_path} ubuntu@${aws_instance.rke2-server[0].public_ip} 'sudo sed \"s/localhost/$var.domain_name}/g;s/127.0.0.1/${var.domain_name}/g\" /etc/rancher/rke2/rke2.yaml' >| ./kubeconfig.yaml; do sleep 5; done"
   }
 }
 

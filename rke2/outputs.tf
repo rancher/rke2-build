@@ -11,7 +11,7 @@ output "rke2_cluster_secret" {
 }
 
 output "rke2_server_ips" {
-  value = join(",", aws_eip.rke2-server-eip.*.public_ip)
+  value = join(",", aws_instance.rke2-server.*.public_ip)
 }
 
 output "kubeconfig" {
