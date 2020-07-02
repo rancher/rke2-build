@@ -9,9 +9,9 @@ variable "server_instance_type" {
 }
 
 variable "rke2_version" {
-  default     = "v0.9.1"
   type        = string
-  description = "Version of K3S to install"
+	default     = "v0.0.1-alpha.5"
+  description = "Version of rke2 to install"
 }
 
 variable "rke2_server_args" {
