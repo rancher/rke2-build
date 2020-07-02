@@ -48,7 +48,7 @@ write_files:
   content: |
     #!/bin/bash
     set -x
-    RKE2_URL=https://github.com/rancher/rke2/releases/download/${rke2_version}/rke2-v0.0.1-alpha.4.linux-amd64
+    RKE2_URL=https://github.com/rancher/rke2/releases/download/${rke2_version}/rke2-${rke2_version}.linux-amd64
     wget -O /usr/local/bin/rke2 $RKE2_URL
     chmod +x /usr/local/bin/rke2
     # setting up environment
