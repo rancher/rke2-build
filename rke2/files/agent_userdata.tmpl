@@ -6,49 +6,26 @@ ssh_authorized_keys:
 %{ endfor }
 %{ endif }
 write_files:
-- path: /etc/systemd/system/rke2-agent.service
-  permissions: "0755"
+- path: /etc/rancher/rke2/config.yaml
+  permissions: "0600"
   owner: root:root
   content: |
-    [Unit]
-    Description=RKE2 Agent
-    Wants=network-online.target
-    [Install]
-    WantedBy=multi-user.target
-    [Service]
-    Type=notify
-    KillMode=process
-    Delegate=yes
-    # Having non-zero Limit*s causes performance problems due to accounting overhead
-    # in the kernel. We recommend using cgroups to do container-local accounting.
-    EnvironmentFile=/etc/systemd/system/rke2-agent.service.env
-    LimitNOFILE=1048576
-    LimitNPROC=infinity
-    LimitCORE=infinity
-    TasksMax=infinity
-    TimeoutStartSec=0
-    Restart=always
-    RestartSec=5s
-    ExecStartPre=-/sbin/modprobe br_netfilter
-    ExecStartPre=-/sbin/modprobe overlay
-    ExecStart=/usr/local/bin/rke2 agent ${rke2_agent_args} --token ${rke2_cluster_secret} --server https://${rke2_url}:9345
+    server: https://${lb_address}:9345
+    token: ${rke2_cluster_secret}
 - path: /opt/rke2/run_rke2.sh
   permissions: "0755"
   owner: root:root
   content: |
     #!/bin/bash
-    set -x
-    RKE2_URL=https://github.com/rancher/rke2/releases/download/${rke2_version}/rke2-v0.0.1-alpha.4.linux-amd64
-    wget -O /usr/local/bin/rke2 $RKE2_URL
-    chmod +x /usr/local/bin/rke2
-    sleep 10
-
-    # setting up environment
-    echo "HOME=/root" > /etc/systemd/system/rke2-agent.service.env
+    curl -fsSL https://raw.githubusercontent.com/rancher/rke2/master/install.sh --output install.sh
+    chmod u+x install.sh
+    INSTALL_RKE2_METHOD='tar' INSTALL_RKE2_TYPE=agent INSTALL_RKE2_VERSION=${rke2_version} ./install.sh
     systemctl enable rke2-agent
-    systemctl daemon-reload
     systemctl start rke2-agent
-
+    sleep 20
+    for bin in $(readlink -f /var/lib/rancher/rke2/bin/*); do
+      ln -sf $bin /usr/local/bin/$(basename $bin)
+    done
 runcmd:
 - apt-get update
 - apt-get install -y iptables git vim software-properties-common resolvconf linux-headers-$(uname -r)
@@ -58,8 +35,3 @@ runcmd:
 - systemctl restart systemd-journald.service
 - systemctl start resolvconf
 - /opt/rke2/run_rke2.sh
-%{ if debug != 0 }
-- sed -i 's/bin\/rke2/bin\/rke2-agent --debug/g' /etc/systemd/system/rke2-agent.service
-- systemctl daemon-reload
-- systemctl restart rke2
-%{ endif }

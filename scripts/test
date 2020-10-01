@@ -1,0 +1,52 @@
+#!/bin/bash -ex
+
+
+
+test_load() {
+  pushd rke-build-${NAME}
+  source scripts/config
+  eval PRIVATE_KEY_PATH=$PRIVATE_KEY_PATH
+  EXPANDED_PRIV_KEY_PATH=$(readlink -f $PRIVATE_KEY_PATH)
+  masterips=$(terraform output -state=server.tfstate | grep rke2_server_ips | cut -d "=" -f 2)
+  docker run -v $EXPANDED_PRIV_KEY_PATH:/opt/priv_key \
+             -e KUBE_SSH_USER=ubuntu \
+             -e LOCAL_SSH_KEY=/opt/priv_key \
+             -it -v $PWD/:/opt/rke2/perf-tests husseingalal/clusterloader:dev \
+             clusterloader --testconfig /opt/rke2/perf-tests/tests/load/config.yaml \
+             --kubeconfig /opt/rke2/perf-tests/kubeconfig.yaml  \
+             --masterip $masterips \
+             --provider=local  \
+             --report-dir /opt/rke2/perf-tests/load_tests_results-$RANDOM \
+             --enable-prometheus-server=1 \
+             --tear-down-prometheus-server=0
+  popd
+}
+
+test_density() {
+  source scripts/config
+  eval PRIVATE_KEY_PATH=$PRIVATE_KEY_PATH
+  EXPANDED_PRIV_KEY_PATH=$(readlink -f $PRIVATE_KEY_PATH)
+  masterips=$(terraform output -state=rke-build-${NAME}/server.tfstate | grep rke2_server_ips | cut -d "=" -f 2)
+  docker run -e KUBE_SSH_USER=ubuntu \
+             -v $EXPANDED_PRIV_KEY_PATH:/opt/priv_key \
+             -e LOCAL_SSH_KEY=/opt/priv_key \
+             -it -v $PWD/rke-build-${NAME}:/opt/rke2/perf-tests husseingalal/clusterloader:dev \
+             clusterloader --testconfig /opt/rke2/perf-tests/density/config.yaml \
+             --kubeconfig /opt/rke2/perf-tests/kubeconfig.yaml  \
+             --masterip $masterips \
+             --provider=local  \
+             --report-dir /opt/rke2/perf-tests/density_tests_results-$RANDOM \
+             --enable-prometheus-server \
+             --tear-down-prometheus-server=0
+}
+
+clean() {
+  # clean kubeconfig
+  pushd tests/
+  rm -f kubeconfig
+  rm -rf load_tests_results*
+  rm -rf density_tests_results/
+  popd
+}
+
+$@

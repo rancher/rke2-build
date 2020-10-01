@@ -14,61 +14,33 @@ runcmd:
 - systemctl restart systemd-journald.service
 - systemctl start resolvconf
 - /opt/rke2/run_rke2.sh
-
 write_files:
-- path: /etc/systemd/system/rke2.service
-  permissions: "0755"
+- path: /etc/rancher/rke2/config.yaml
+  permissions: "0600"
   owner: root:root
   content: |
-    [Unit]
-    Description=RKE2
-    Wants=network-online.target
-    [Install]
-    WantedBy=multi-user.target
-    [Service]
-    Type=notify
-    KillMode=process
-    Delegate=yes
-    # Having non-zero Limit*s causes performance problems due to accounting overhead
-    # in the kernel. We recommend using cgroups to do container-local accounting.
-    EnvironmentFile=/etc/systemd/system/rke2.service.env
-    LimitNOFILE=1048576
-    LimitNPROC=infinity
-    LimitCORE=infinity
-    TasksMax=infinity
-    TimeoutStartSec=0
-    Restart=always
-    RestartSec=5s
-    ExecStartPre=-/sbin/modprobe br_netfilter
-    ExecStartPre=-/sbin/modprobe overlay
-    ExecStart=/usr/local/bin/rke2 server ${rke2_server_args} --tls-san ${domain_name} --token ${rke2_cluster_secret} %{ if master_index != 0 } --server https://${lb_address}:9345 %{ endif }
+    %{ if master_index != 0 }
+    server: https://${lb_address}:9345
+    %{ endif }
+    tls-san: ${lb_address}
+    token: ${rke2_cluster_secret}
 - path: /opt/rke2/run_rke2.sh
   permissions: "0755"
   owner: root:root
   content: |
     #!/bin/bash
-    set -x
-    RKE2_URL=https://github.com/rancher/rke2/releases/download/${rke2_version}/rke2-${rke2_version}.linux-amd64
-    wget -O /usr/local/bin/rke2 $RKE2_URL
-    chmod +x /usr/local/bin/rke2
-    # setting up environment
-    echo "HOME=/root" > /etc/systemd/system/rke2.service.env
     %{ if master_index != 0 }
     while true; do
       timeout 1 bash -c 'cat < /dev/null > /dev/tcp/${lb_address}/9345'
       if [ "$?" == 0 ]; then
         break
       fi
-      echo "master is not ready yet"
-      sleep 10
+    echo "master is not ready yet"
+    sleep 10
     done
     %{ endif }
-    systemctl enable rke2
-    systemctl daemon-reload
-    systemctl start rke2
-    sleep 20
-    # create symlinks
-    for bin in $(readlink -f /var/lib/rancher/rke2/data/**/bin/*); do
-      ln -sf $bin /usr/local/bin/$(basename $bin)
-    done
-
+    curl -fsSL https://raw.githubusercontent.com/rancher/rke2/master/install.sh --output install.sh
+    chmod u+x install.sh
+    INSTALL_RKE2_METHOD='tar' INSTALL_RKE2_TYPE=server INSTALL_RKE2_VERSION=${rke2_version} ./install.sh
+    systemctl enable rke2-server
+    systemctl start rke2-server

@@ -11,3 +11,6 @@ destroy:
 
 clean:
 	@scripts/build clean NAME=${NAME}
+
+test:
+	@scripts/test test_load NAME=${NAME}
