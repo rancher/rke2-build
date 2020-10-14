@@ -1,0 +1,27 @@
+{
+  "predicateEvaluationLatency": {
+    "Perc50": 2380094,
+    "Perc90": 4264598,
+    "Perc99": 6955840
+  },
+  "priorityEvaluationLatency": {
+    "Perc50": 1032392,
+    "Perc90": 3925688,
+    "Perc99": 7392342
+  },
+  "preemptionEvaluationLatency": {
+    "Perc50": 0,
+    "Perc90": 0,
+    "Perc99": 0
+  },
+  "bindingLatency": {
+    "Perc50": 3794389,
+    "Perc90": 13113942,
+    "Perc99": 52460104
+  },
+  "e2eSchedulingLatency": {
+    "Perc50": 0,
+    "Perc90": 0,
+    "Perc99": 0
+  }
+}

@@ -1,0 +1,125 @@
+#!/bin/bash -ex
+
+if [ "${DEBUG}" = "1" ]; then
+	set -x
+fi
+
+info()
+{
+    echo '[INFO] ' "$@"
+}
+warn()
+{
+    echo '[WARN] ' "$@" >&2
+}
+fatal()
+{
+    echo '[ERROR] ' "$@" >&2
+    exit 1
+}
+
+if [ "$1" == "" ]; then
+	fatal "Please enter build name"
+fi
+
+TERRAFORM_PLAN_CMD="terraform plan --var-file variables.tfvars --out rke2.plan"
+TERRAFORM_APPLY_CMD="terraform apply rke2.plan"
+TERRAFORM_DESTROY_CMD="terraform destroy --var-file variables.tfvars --force"
+
+
+for bin in kubectl terraform; do
+    type $bin >/dev/null 2>&1 || (fatal "$bin is not in the path. Please make sure it is installed and in PATH.")
+done
+
+init() {
+  terraform init
+}
+
+build() {
+  # init terraform
+  init
+  # configure variables
+  config
+  # plan and apply
+  $TERRAFORM_PLAN_CMD
+  $TERRAFORM_APPLY_CMD
+}
+
+plan() {
+  # init terraform
+  config
+  # Run plan
+  $TERRAFORM_PLAN_CMD
+}
+
+
+config() {
+  source scripts/config
+  
+  eval PRIVATE_KEY_PATH=$PRIVATE_KEY_PATH
+  EXPANDED_PRIV_KEY_PATH=`readlink -f $PRIVATE_KEY_PATH`
+  if [ -z "$CLUSTER_SECRET" ]; then
+    # randomize cluster secret
+    CLUSTER_SECRET=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+  fi
+cat <<MAIN > variables.tfvars
+name = "${NAME}"
+rke2_cluster_secret = "${CLUSTER_SECRET}"
+server_instance_type = "${SERVER_INSTANCE_TYPE}"
+extra_ssh_keys = ["${EXTRA_SSH_KEYS}"]
+server_count = ${SERVER_COUNT}
+server_ha = ${SERVER_HA}
+rke2_server_args = "${RKE2_SERVER_ARGS}"
+rke2_agent_args = "${RKE2_AGENT_ARGS}"
+rke2_version = "${RKE2_VERSION}"
+ssh_key_path = "${EXPANDED_PRIV_KEY_PATH}"
+debug = ${DEBUG}
+domain_name = "${NAME}.eng.rancher.space"
+zone_id = "${ZONE_ID}"
+agent_node_count = "${AGENT_COUNT}"
+agent_instance_type = "${AGENT_INSTANCE_TYPE}"
+aws_profile = "${AWS_PROFILE}"
+MAIN
+}
+
+clean() {
+  # clean server and agents
+  rm -rf $BUILD_DIR
+}
+
+destroy() {
+	init
+        $TERRAFORM_DESTROY_CMD
+}
+
+info() {
+    set +x
+    pushd $BUILD_DIR
+    terraform output
+    popd
+}
+
+
+
+if [ -z "$NAME" ]; then
+  fatal "Please enter NAME=<name> to run the script"
+fi
+BUILD_DIR=rke-build-$NAME
+
+if [ $1 == "build" ] || [ $1 == "destroy" ]; then
+  if [ ! -d "$BUILD_DIR" ] && [ $1 == "destroy" ]; then
+    fatal "setup directory doesnt exist.."
+  fi
+  mkdir -p $BUILD_DIR
+  cp -r rke2/* scripts $BUILD_DIR
+  pushd $BUILD_DIR
+  $@
+  popd
+  if [ $1 == "destroy" ]; then
+    clean
+  fi
+else
+  $@
+fi
+
+
