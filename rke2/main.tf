@@ -129,6 +129,7 @@ resource "aws_instance" "rke2-server" {
     lb_address = aws_lb.rke2-master-nlb.dns_name,
     domain_name = var.domain_name
     master_index = count.index,
+    dns_name = aws_route53_record.www.name,
     rke2_arch = var.rke2_arch,
     debug = var.debug,}))
   security_groups = [
@@ -178,7 +179,6 @@ module "rke2-pool-agent-asg" {
   max_size            = var.agent_node_count
   min_size            = var.agent_node_count
   vpc_zone_identifier = [data.aws_subnet.selected.id]
-  spot_price          = "0.680"
 
   security_groups = [
     aws_security_group.rke2-all-open.id,

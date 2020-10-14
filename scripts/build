@@ -88,8 +88,18 @@ clean() {
 }
 
 destroy() {
+	init
         $TERRAFORM_DESTROY_CMD
 }
+
+info() {
+    set +x
+    pushd $BUILD_DIR
+    terraform output
+    popd
+}
+
+
 
 if [ -z "$NAME" ]; then
   fatal "Please enter NAME=<name> to run the script"

@@ -14,3 +14,6 @@ clean:
 
 test:
 	@scripts/test test_load NAME=${NAME}
+
+info:
+	@scripts/build info
