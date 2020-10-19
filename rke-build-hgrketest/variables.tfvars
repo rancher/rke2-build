@@ -1,0 +1,16 @@
+name = "hgrketest"
+rke2_cluster_secret = "secret"
+server_instance_type = "m5.8xlarge"
+extra_ssh_keys = ["ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDZBAE6I9J733HJfCBVu7iWSUuJ7th0U4P4IFfpFDca52n/Hk4yFFr8SPR8JJc1n42c3vEVCbExp/MD4ihqEBy9+pLewxA+fkb7UAT4cT2eLfvZdTTVe8KSiw6lVN6tWSoNXmNqY+wH7zWQ04lfjXPa/c01L1n2XwV/O+5xii9vEuSxN9YhfQ/s61SdLFqQ5yS8gPsM0qQW+bFt5KGGbapqztDO+h9lxGbZRcRAKbCzZ5kF1mhjI/+VubTWKtoVLCumjzjYqILYyx9g/mLSo26qjDEZvtwBQB9KLugDAtnalLVp0HgivC5YfLHr8PxViVSHfIIKS2DhUpn07jr8eKi9"]
+server_count = 3
+server_ha = 1
+rke2_server_args = ""
+rke2_agent_args = ""
+rke2_version = "v1.18.9%2Brke2r1"
+ssh_key_path = "/home/hussein/.ssh/id_rsa"
+debug = 1
+domain_name = "hgrketest.eng.rancher.space"
+zone_id = "Z29PIZ25UFC7V7"
+agent_node_count = "1000"
+agent_instance_type = "m5.xlarge"
+aws_profile = "rancher-eng"
